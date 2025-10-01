@@ -1,0 +1,198 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  password      String?
+  walletAddress String?
+  role          UserRole  @default(USER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  purchases         Purchase[]
+  initiativeUpdates InitiativeUpdate[]
+  notifications     Notification[]
+  aiJobs           AIJob[]
+
+  @@map("users")
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  sku         String   @unique
+  title       String
+  description String?
+  metadata    Json?
+  price       Decimal  @db.Decimal(10, 2)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  purchases Purchase[]
+
+  @@map("products")
+}
+
+model Initiative {
+  id          String         @id @default(cuid())
+  slug        String         @unique
+  title       String
+  description String
+  lat         Float
+  lng         Float
+  region      String
+  status      InitiativeStatus @default(PLANNING)
+  groupId     String?
+  metadata    Json?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  // Relations
+  updates   InitiativeUpdate[]
+  purchases Purchase[]
+
+  @@map("initiatives")
+}
+
+model Purchase {
+  id              String        @id @default(cuid())
+  userId          String
+  productId       String
+  quantity        Int           @default(1)
+  total           Decimal       @db.Decimal(10, 2)
+  orderId         String
+  purchaseDate    DateTime      @default(now())
+  blockchainTokenId String?
+  txHash          String?
+  status          PurchaseStatus @default(PENDING)
+  initiativeId    String?
+
+  // Relations
+  user       User       @relation(fields: [userId], references: [id])
+  product    Product    @relation(fields: [productId], references: [id])
+  initiative Initiative? @relation(fields: [initiativeId], references: [id])
+
+  @@map("purchases")
+}
+
+model InitiativeUpdate {
+  id           String   @id @default(cuid())
+  initiativeId String
+  authorId     String
+  type         UpdateType
+  content      String
+  images       String[]
+  summaryAI    String?
+  tags         String[]
+  published    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  initiative Initiative @relation(fields: [initiativeId], references: [id])
+  author     User       @relation(fields: [authorId], references: [id])
+
+  @@map("initiative_updates")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  payload   Json
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+model AIJob {
+  id        String   @id @default(cuid())
+  userId    String?
+  type      AIJobType
+  input     Json
+  output    Json?
+  prompt    String
+  response  String?
+  model     String?
+  status    AIJobStatus @default(PENDING)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("ai_jobs")
+}
+
+// Enums
+enum UserRole {
+  USER
+  EDITOR
+  ADMIN
+}
+
+enum InitiativeStatus {
+  PLANNING
+  IN_PROGRESS
+  COMPLETED
+  ON_HOLD
+  CANCELLED
+}
+
+enum PurchaseStatus {
+  PENDING
+  CONFIRMED
+  BLOCKCHAIN_MINTED
+  COMPLETED
+  FAILED
+}
+
+enum UpdateType {
+  PROGRESS
+  MILESTONE
+  CHALLENGE
+  COMPLETION
+  GENERAL
+}
+
+enum NotificationType {
+  PURCHASE_CONFIRMED
+  INITIATIVE_UPDATE
+  BLOCKCHAIN_MINTED
+  AI_SUMMARY_READY
+  GENERAL
+}
+
+enum AIJobType {
+  SUMMARIZE_UPDATE
+  EXTRACT_TAGS
+  ANALYZE_IMAGE
+  GENERATE_RECOMMENDATIONS
+  MODERATE_CONTENT
+  OCR_EXTRACTION
+}
+
+enum AIJobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
